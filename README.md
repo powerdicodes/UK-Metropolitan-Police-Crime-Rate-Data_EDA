@@ -37,26 +37,26 @@ Due to GitHub's file upload limit per file, the original dataset crime records i
 4. Q2 Outcomes Dataset: UK_Outcomes_Q2_2025 (April to June 2025)
 
 This approach allows for:
-a. Easier file management and quicker downloads
-b. Compatibility with GitHub hosting constraints
-c. flexible analysis for quarterly trends
+1. Easier file management and quicker downloads
+2. Compatibility with GitHub hosting constraints
+3. flexible analysis for quarterly trends
 > Both files are stored in the /data directory and maintain a consistent schema
 
 For eploratory data analysis (EDA) it is recommended to combine both quarterly datasets into a single table before analysis. This ensures:
-a. Complete time-series continuity from January to June 2025 
-b. Accurate aggregations and filtering across the full date range 
-c. Simplified query logic for dashboards and reporting
+1. Complete time-series continuity from January to June 2025 
+2. Accurate aggregations and filtering across the full date range 
+3. Simplified query logic for dashboards and reporting
 
 You can combine the files:
-a. By merging them in a spreadsheet before importing
-b. Or by importing both into a staging table and using a UNION ALL query to consolidate the data
+1. By merging them in a spreadsheet before importing
+2. Or by importing both into a staging table and using a UNION ALL query to consolidate the data
 > Ensure the column order and data types match exactly when combining
 
 Data Cleaning:
 Prior to being uploaded and analyzed, the original dataset was cleaned and processed in Microsoft Excel, including:
-a. Assesment of any empty or invalid rows and its possible impact to the quality of the data
-b. Standardizing column names 
-c. Imputating or correcting missing values where appropriate
-c. Ensuring consistend formatting for dates and categories
+1. Assesment of any empty or invalid rows and its possible impact to the quality of the data
+2. Standardizing column names 
+3. Imputating or correcting missing values where appropriate
+4. Ensuring consistent formatting for dates and categories
 > This pre-cleaned structure ensures readines for loading into Power BI, SQL databases, or any analysis tools.
 
