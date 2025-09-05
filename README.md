@@ -30,7 +30,7 @@ Attribution
 
 ## Additional information regarding the datasets:
 
-Due to GitHub's file upload limit per file, the original dataset crime records in London for January to June 2025 was split into two separate files:
+Due to GitHub's file upload limit per file, the original dataset crime records in London for January to June 2025 was split into two separate Microsoft Excel Binary files:
 1. Q1 Street Crime Level Dataset: UK_CrimeData_Q1_2025 (January to March 2025)
 2. Q2 Street Crime Level Dataset: UK_CrimeData_Q2_2025 (April to June 2025)
 3. Q1 Outcomes Dataset: UK_CrimeOutcomes_Q1_2025 (January to March 2025)
