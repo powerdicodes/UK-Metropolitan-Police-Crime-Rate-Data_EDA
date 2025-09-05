@@ -1,0 +1,329 @@
+-- SQL Project: UK London Metropolitan Police Service 2025 Crime Data Exploratory Data Analysis
+
+
+-- Create schema
+
+CREATE SCHEMA UKMetropolitanPoliceCrimeRate;
+
+-- Create Table: Crime Data
+
+CREATE TABLE UKMetropolitanPoliceCrimeRate.UKCrimeRateData
+  (
+	CrimeID VARCHAR (100),
+	`Month` VARCHAR (20),
+	ReportedBy VARCHAR (50),
+	Falls_Within VARCHAR (50),
+	Longitude VARCHAR (50),
+	Latitude VARCHAR (50),
+	Location VARCHAR (100),
+	LSOA_Code VARCHAR (50),
+	LSOA_Name VARCHAR (100),
+	Crime_Type VARCHAR (100),
+	Last_Outcome_Category VARCHAR (150),
+    `Context` VARCHAR (50)
+);
+
+-- Create Table: Crime Outcomes
+
+CREATE TABLE UKMetropolitanPoliceCrimeRate.UKCrimeRateOutcomes
+  (
+	CrimeID VARCHAR (150),
+	`Month` VARCHAR (20),
+	ReportedBy VARCHAR (50),
+	Falls_Within VARCHAR (50),
+	Longitude VARCHAR (50),
+	Latitude VARCHAR (50),
+	Location VARCHAR (100),
+	LSOA_Code VARCHAR (50),
+	LSOA_Name VARCHAR (100),
+    Outcome_Type VARCHAR (150)
+    );
+
+
+
+-- Ensure local_infile is enabled
+
+SHOW VARIABLES LIKE "Local_infile";
+-- SET GLOBAL local_infile = 1; -- Requires root access
+
+
+
+-- Load data into UKCrimeRateData
+
+LOAD DATA LOCAL INFILE 'data/UK_CrimeData_2025.csv'
+INTO TABLE UKCrimeRateData
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+
+-- Load data into UKCrimeRateOutcomes
+
+LOAD DATA LOCAL INFILE 'data/UK_CrimeOutcomes_2025.csv'
+INTO TABLE UKCrimeRateOutcomes
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS;
+
+
+
+-- Basic row count checks
+
+SELECT COUNT(*) FROM UKMetropolitanPoliceCrimeRate.UKCrimeRateData;
+SELECT COUNT(*) FROM UKMetropolitanPoliceCrimeRate.UKCrimeRateOutcomes;
+
+
+-- Basic data checks
+
+SELECT * FROM UKMetropolitanPoliceCrimeRate.UKCrimeRateData;
+SELECT * FROM UKMetropolitanPoliceCrimeRate.UKCrimeRateOutcomes;
+
+
+
+-- Crime count per month
+
+SELECT 
+	`Month`, 
+	COUNT(*) AS Crime_Count 
+FROM UKCrimeRateData
+GROUP BY `Month`;
+
+
+
+-- Monthly Crime by type
+
+SELECT 
+	`Month`, 
+  Crime_Type,
+	COUNT(*) AS Crime_Count 
+FROM UKCrimeRateData
+GROUP BY 1, 2;
+
+
+
+-- Month-on-month percentage change
+
+SELECT 
+    `Month`,
+    Crime_Type,
+    COUNT(*) AS Crime_Count,
+    ROUND((COUNT(*) - LAG(COUNT(*)) OVER (PARTITION BY Crime_Type ORDER BY `Month`))
+        / LAG(COUNT(*)) OVER (PARTITION BY Crime_Type ORDER BY `Month`) * 100, 2) AS MoM_Percentage_Change
+FROM UKCrimeRateData
+GROUP BY 1,2
+ORDER BY 1;
+
+
+
+-- Top 20 locations by crime count
+
+SELECT 
+	location, 
+	COUNT(*) AS Crime_Count 
+FROM UKCrimeRateData
+GROUP BY location
+ORDER BY Crime_Count DESC
+LIMIT 20;
+
+
+
+-- Crime rates categorized by month and location
+
+WITH LocationCrimeCount AS (
+  SELECT 
+	`Month`,
+	location, 
+	COUNT(*) AS Crime_Count
+FROM UKCrimeRateData
+GROUP BY 1,2
+)
+SELECT 
+	`Month`,
+	location, 
+    Crime_Count,
+    DENSE_RANK () OVER (PARTITION BY `Month` ORDER BY Crime_Count DESC) AS `Rank`
+FROM LocationCrimeCount;
+
+
+
+-- Specific location coordinates where crimes occur often
+
+SELECT 
+	`Month`,
+	Crime_type,
+    Location,
+	Longitude,
+    Latitude,
+    COUNT(*) AS Crime_Count
+FROM UKCrimeRateData
+GROUP BY 1,2,3,4,5
+ORDER BY 5 DESC;
+
+
+
+-- Crime types sorted largest to lowest for the past 6 months
+
+SELECT 
+	Crime_Type,
+	COUNT(*) AS Crime_Count
+FROM UKCrimeRateData
+GROUP BY 1
+ORDER BY 2 DESC;
+
+
+
+-- Location of crime occurence Violence and sexual offences
+
+SELECT Location, Crime_Count
+FROM
+  (SELECT Crime_Type, Location,
+	COUNT(*) AS Crime_Count
+	FROM UKCrimeRateData
+	WHERE Crime_Type = 'Violence and sexual offences'
+	GROUP BY 1,2 ) AS CrimeCount	
+ORDER BY Crime_Count DESC
+LIMIT 10;
+
+-- or --
+
+SELECT 
+	location, 
+	COUNT(*) AS Crime_Count 
+FROM UKCrimeRateData
+WHERE Crime_Type = 'Violence and sexual offences'
+GROUP BY location
+ORDER BY Crime_Count DESC
+LIMIT 10;
+
+
+
+-- Updating UKCrimeRateData table to impute updated outcomes
+-- As CrimeID duplicates were noted in the UKCrimeRateOutcomes table we will need to search the latest update available from the file and create a temporary table
+
+WITH RankedOutcomes AS (
+  SELECT 
+    CrimeID,
+    Outcome_Type,
+    CAST(SUBSTRING_INDEX(`Month`, '-', -1) AS UNSIGNED) AS MonthNum,
+    DENSE_RANK() OVER (PARTITION BY CrimeID ORDER BY CAST(SUBSTRING_INDEX(`Month`, '-', -1) AS UNSIGNED)) AS OutcomeRank
+  FROM UKCrimeRateOutcomes
+  GROUP BY 1, 2, 3
+)
+-- CREATE TEMPORARY TABLE OutcomesUpdated AS -- does not execute in mysql 8.0
+SELECT *
+FROM RankedOutcomes ro1
+WHERE OutcomeRank = (
+  SELECT MAX(OutcomeRank)
+  FROM RankedOutcomes ro2
+  WHERE ro2.CrimeID = ro1.CrimeID 
+);
+
+
+-- or -- 
+
+
+CREATE TEMPORARY TABLE OutcomesUpdated AS
+SELECT *
+FROM (
+  SELECT 
+    CrimeID,
+    Outcome_Type,
+    CAST(SUBSTRING_INDEX(`Month`, '-', -1) AS UNSIGNED) AS MonthNum,
+    DENSE_RANK() OVER (PARTITION BY CrimeID ORDER BY CAST(SUBSTRING_INDEX(`Month`, '-', -1) AS UNSIGNED)) AS OutcomeRank
+  FROM UKCrimeRateOutcomes
+  GROUP BY 1, 2, 3
+) AS RankedOutcomes
+	WHERE OutcomeRank = (
+		SELECT MAX(OutcomeRank)
+		FROM (
+		SELECT 
+		CrimeID,
+		DENSE_RANK() OVER (PARTITION BY CrimeID ORDER BY CAST(SUBSTRING_INDEX(`Month`, '-', -1) AS UNSIGNED)) AS OutcomeRank
+    FROM UKCrimeRateOutcomes) AS RO
+	WHERE RO.CrimeID = RankedOutcomes.CrimeID
+);
+
+
+-- Basic checks 
+
+SELECT * FROM OutcomesUpdated
+ORDER BY OutcomeRank DESC;
+
+
+-- Now we will join data from the UKCrimeRateData table and the OutcomesUpdated temporary table 
+
+SELECT 
+	CRD.`Month`,
+	CRD.CrimeID,
+	CRD.Crime_Type,
+    CRD.Last_Outcome_Category,
+    OU.Outcome_Type,
+    CASE 
+    WHEN Outcome_Type IS NOT NULL THEN OU.Outcome_Type 
+    ELSE CRD.Last_Outcome_Category
+    END AS Outcome_Updated
+FROM UKCrimeRateData AS CRD
+LEFT JOIN OutcomesUpdated AS OU
+ON CRD.CrimeID = OU.CrimeID;
+
+
+
+-- Calculating percentages of outcomes per crime types based on cumulative crime count data per month
+
+WITH LastOutcomeUPdated AS (
+  SELECT 
+	CRD.`Month`,
+	CRD.CrimeID,
+	CRD.Crime_Type,
+    CRD.Last_Outcome_Category,
+    CASE 
+    WHEN Outcome_Type IS NOT NULL THEN OU.Outcome_Type 
+    ELSE CRD.Last_Outcome_Category
+    END AS Outcome_Updated
+  FROM UKCrimeRateData AS CRD
+  LEFT JOIN OutcomesUpdated AS OU
+  ON CRD.CrimeID = OU.CrimeID
+),
+MonthlyCounts AS (
+  SELECT 
+	`Month`,
+	Crime_Type,
+    Outcome_Updated,
+    COUNT(*) AS Crime_Count
+  FROM LastOutcomeUPdated
+  GROUP BY 1,2,3
+),
+CumulativeCounts AS (
+  SELECT 
+	`Month`,
+	Crime_Type,
+    Outcome_Updated,
+	Crime_Count,
+    SUM(Crime_Count) OVER (PARTITION BY Crime_Type, Outcome_Updated ORDER BY `Month`) AS Cumulative_Crime_Count,
+    SUM(Crime_Count) OVER (PARTITION BY Crime_Type ORDER BY `Month`) AS Cumulative_Month_Total_Crime_Count
+  FROM MonthlyCounts
+  )
+  SELECT 
+	`Month`,
+	Crime_Type,
+	Outcome_Updated, 
+    Cumulative_Crime_Count,
+    ROUND((Cumulative_Crime_Count * 100 / Cumulative_Month_Total_Crime_Count),2) AS OutcomePercentagePerMonth
+FROM CumulativeCounts
+ORDER BY 1,2,3;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
