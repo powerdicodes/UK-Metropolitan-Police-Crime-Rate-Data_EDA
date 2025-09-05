@@ -67,7 +67,7 @@ Prior to being uploaded and analyzed, the original dataset was cleaned and proce
 | `UK_CrimeData_2025`  | `Crime ID`              | Missing Crime ID details                                  | 91,280        | 20.19%         | n/a             | ✅ Yes         | No action needed                                                                                  | Missing Crime IDs could possibly relate to "Anti-Social Behaviour" in the Crime Types column                    |
 | `UK_CrimeData_2025`  | `Last outcome category` | Imputation needed for outcomes not in the public interest | 544           | 0.12%          | n/a             | ✅ Yes         | Narrowed down to one single category                                                              | Affected crime types were all similar                                                                           |
 | `UK_CrimeData_2025`  | `Last outcome category` | No outcome for Anti-Social Behaviour                      | 91,280        | 20.19%         | n/a             | ✅ Yes         | Inquiry with the concerned department. Imputed as “Further action is not in the public interest.” | For analysis/visualization purposes, outcome is standardized                                                    |
-| `UK_CrimeOutcomes_2025` | `Outcome type`          | Need to extract latest outcome using helper columns       | n/a           | n/a            | n/a             | ✅ Yes         | Created helper columns to determine the latest outcome based on timestamp and outcome rank        | Since timestamps are in months, verification was required to ensure latest records reflect most recent outcomes |
+
 
 Other observations
 * No duplicates noted in the Crime ID column
